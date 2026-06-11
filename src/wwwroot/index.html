@@ -78,6 +78,15 @@
 
   .note{margin-top:18px; font-size:13px; color:var(--muted); min-height:18px}
   .note.error{color:var(--neg)}
+  .genbar{display:flex; gap:10px; align-items:stretch}
+  .toggle{display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden}
+  .toggle .opt{border:none; background:transparent; color:var(--muted); font-family:"Space Mono",monospace; font-size:13px; padding:0 16px; cursor:pointer; transition:.15s}
+  .toggle .opt.active.pos{background:var(--pos-dim); color:var(--pos)}
+  .toggle .opt.active.neg{background:var(--neg-dim); color:var(--neg)}
+  .run.gen{margin-top:0; flex:1}
+  .gen-out{margin-top:16px; min-height:28px; font-size:17px; line-height:1.9}
+  .gentok{border-radius:5px; padding:2px 5px; margin-right:2px}
+  .suggest-label{font-family:"Space Mono",monospace; font-size:11px; color:var(--muted); margin-top:10px}
 
   details{margin-top:30px; border-top:1px solid var(--line); padding-top:18px}
   summary{font-family:"Space Mono",monospace; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); cursor:pointer; list-style:none}
@@ -101,9 +110,25 @@
   <div class="card">
     <label class="field-label" for="entry">Your reflection</label>
     <textarea id="entry" placeholder="e.g. I kept my streak today and I feel proud of the progress…"></textarea>
+    <div class="suggest-label">micro-GPT suggests:</div>
+    <div class="chips" id="suggest"></div>
     <div class="chips" id="chips"></div>
     <button class="run" id="run">Read the mood</button>
     <div class="note" id="note"></div>
+  </div>
+
+  <div class="card">
+    <label class="field-label">Generate a reflection - micro-GPT</label>
+    <div class="genbar">
+      <div class="toggle" id="toggle">
+        <button type="button" class="opt pos active" data-s="positive">positive</button>
+        <button type="button" class="opt neg" data-s="negative">negative</button>
+      </div>
+      <button class="run gen" id="gen">Generate</button>
+    </div>
+    <div class="gen-out" id="genout" aria-live="polite"></div>
+    <div class="chips"><button class="chip" id="classifyGen" hidden>classify this</button></div>
+    <div class="note" id="gennote"></div>
   </div>
 
   <div id="result" aria-live="polite">
@@ -122,6 +147,7 @@
     <summary>How this works</summary>
     <p><strong>The model runs on the server.</strong> This page sends your text to the app's <code>/classify</code> endpoint; the C# classifier — trained once at startup on 150 labelled reflections — does the maths and returns the verdict plus each word's lean.</p>
     <p><strong>Multinomial Naive Bayes.</strong> It counts how often each word appears in positive vs. negative training text, adds up the log-probabilities for your sentence, and picks the more likely class. Add-one smoothing handles words it has never seen; a word after <em>not / never / didn't</em> is tagged separately, so "not happy" isn't read as "happy". <strong>Each bar above</strong> is one word's log-likelihood ratio — the model's real reasoning, not a summary.</p>
+    <p><strong>The generator is a micro-GPT.</strong> A single-head transformer - token and positional embeddings, causal self-attention, a feed-forward layer - is written from scratch in C# and trained at startup on the same 150 reflections. Generation starts from a <code>&lt;pos&gt;</code> or <code>&lt;neg&gt;</code> prompt token and samples word by word; each word's shading shows the probability it was sampled at.</p>
   </details>
 
   <footer>
@@ -210,6 +236,81 @@ function render(data){
 
 $("run").onclick = run;
 $("entry").addEventListener("keydown", e=>{ if(e.key==="Enter" && (e.metaKey||e.ctrlKey)) run(); });
+
+let sentiment = "positive";
+document.querySelectorAll("#toggle .opt").forEach(btn=>{
+  btn.onclick = ()=>{
+    sentiment = btn.dataset.s;
+    document.querySelectorAll("#toggle .opt").forEach(o=>o.classList.toggle("active", o===btn));
+  };
+});
+
+async function generate(){
+  const btn = $("gen");
+  btn.disabled = true; btn.textContent = "Sampling...";
+  $("gennote").textContent = ""; $("gennote").classList.remove("error");
+  try{
+    const res = await fetch("/generate", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ sentiment })
+    });
+    if(!res.ok) throw new Error("Request failed (" + res.status + ")");
+    const data = await res.json();
+    const out = $("genout"); out.innerHTML = "";
+    const color = sentiment === "positive" ? "79,209,165" : "255,107,129";
+    (data.tokens || []).forEach((t,i)=>{
+      const span = document.createElement("span");
+      span.className = "gentok";
+      span.textContent = t.word;
+      span.title = "sampled at p=" + t.prob;
+      span.style.background = `rgba(${color},${(0.06 + 0.30*t.prob).toFixed(3)})`;
+      span.style.opacity = "0";
+      out.appendChild(span);
+      setTimeout(()=>{ span.style.transition = "opacity .25s"; span.style.opacity = "1"; }, i*70);
+    });
+    $("classifyGen").hidden = !data.text;
+    $("classifyGen").dataset.text = data.text || "";
+    if(!data.text) $("gennote").textContent = "The model stopped immediately. Try again.";
+  }catch(err){
+    $("gennote").textContent = err.message; $("gennote").classList.add("error");
+  }finally{
+    btn.disabled = false; btn.textContent = "Generate";
+  }
+}
+$("gen").onclick = generate;
+$("classifyGen").onclick = ()=>{ $("entry").value = $("classifyGen").dataset.text; run(); refreshSuggestions(); };
+
+let suggestTimer = null;
+async function refreshSuggestions(){
+  try{
+    const res = await fetch("/suggest", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ text: $("entry").value })
+    });
+    if(!res.ok) return;
+    const data = await res.json();
+    const box = $("suggest"); box.innerHTML = "";
+    (data.suggestions || []).forEach(s=>{
+      const b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.textContent = s.word + " - " + (s.prob*100).toFixed(0) + "%";
+      b.onclick = ()=>{
+        const v = $("entry").value;
+        $("entry").value = v + (v && !v.endsWith(" ") ? " " : "") + s.word;
+        $("entry").focus();
+        refreshSuggestions();
+      };
+      box.appendChild(b);
+    });
+  }catch{}
+}
+$("entry").addEventListener("input", ()=>{
+  clearTimeout(suggestTimer);
+  suggestTimer = setTimeout(refreshSuggestions, 250);
+});
+refreshSuggestions();
 </script>
 </body>
 </html>
