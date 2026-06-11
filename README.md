@@ -1,32 +1,42 @@
-# 1000days-017-reflection-classifier
+# day17-AIbyAI
 
-Day 017 of 1000 Days Challenge — a sentiment classifier with the AI **built from scratch**.
+Day 017 of the 1000 Days Challenge: an AI app created by AI.
 
-`day17_ReflectionClassifier` reads a short daily reflection ("how was your day?") and labels it **positive** or **negative** — then tells you which words drove the decision. The model is a multinomial Naive Bayes classifier written in plain C#. No ML.NET, no external model, no API. It trains in memory at startup from a labelled dataset baked into the build.
+This project is a small reflection reader where the application, UI, API, and toy AI models were assembled by an AI coding agent. The result is intentionally transparent: the AI inside the app is not a hidden API call. It is C# code in this repository, trained at startup from 150 labelled reflections.
 
-## Why this one
+Live app: http://day017-reflection-classifier.azurewebsites.net
 
-Days so far have been apps with hand-rolled logic (affirmations, habit streaks). This is the first day the *logic itself is the AI* — implemented from first principles rather than called from a library. Once Naive Bayes is in your hands, every heavier model is a variation on the same counting-and-probabilities idea.
+## What It Does
 
-## What it does
+- **Reads your reflection** and classifies it as positive or negative.
+- **Explains the decision** by showing which words pulled the result positive or negative.
+- **Suggests next words** while you type using a tiny from-scratch micro-GPT.
+- **Generates a reflection** from a positive or negative prompt.
+- **Runs without ML libraries**: no ML.NET, no external model API, no hosted LLM inference.
 
-- **Multinomial Naive Bayes**, ~90 lines of model code, no ML dependencies.
-- **Add-one (Laplace) smoothing** so unseen words never zero out a class.
-- **Negation handling** — a word after *not / never / didn't* is tagged separately, so "not happy" reads negative.
-- **Explains itself** — every prediction returns the words that pushed hardest and which way.
-- Trained on 150 hand-labelled reflections embedded in the build.
+## AI Created By AI
 
-## Accuracy
+The app is deliberately meta: an AI coding agent built a tiny AI system.
 
-Measured, not asserted: **5-fold cross-validation ≈ 87%**, and the held-out test in the suite (every 5th example) scores **28/30 ≈ 93%**. The same algorithm and split were verified independently before being ported to C#, so the number in the test is real, not aspirational.
+The classifier is classical machine learning: a multinomial Naive Bayes model with Laplace smoothing and simple negation handling.
 
-## Run it
+The generator is a toy language model: a single-head, decoder-style transformer with token embeddings, positional embeddings, causal self-attention, a feed-forward layer, and next-token sampling. It is tiny and data-starved, so its writing can be odd. The point is the mechanism: the model code is visible and runs inside this app.
+
+## Run Locally
 
 ```bash
 dotnet run --project src
 ```
 
-Then open the URL it prints (default **http://localhost:5000**) in a browser — the UI lets you type a reflection and watch each word pull the verdict positive or negative. Prefer the API directly?
+Then open the printed local URL, usually:
+
+```text
+http://localhost:5000
+```
+
+## API
+
+Classify text:
 
 ```bash
 curl -s -X POST http://localhost:5000/classify \
@@ -34,9 +44,20 @@ curl -s -X POST http://localhost:5000/classify \
   -d '{"text":"i kept my streak and i feel proud"}'
 ```
 
-```json
-{ "label": "positive", "confidence": 0.93,
-  "topSignals": [ { "word": "proud", "lean": 2.1 }, ... ] }
+Generate a reflection:
+
+```bash
+curl -s -X POST http://localhost:5000/generate \
+  -H "Content-Type: application/json" \
+  -d '{"sentiment":"positive","maxWords":20}'
+```
+
+Suggest next words:
+
+```bash
+curl -s -X POST http://localhost:5000/suggest \
+  -H "Content-Type: application/json" \
+  -d '{"text":"i feel"}'
 ```
 
 ## Tests
@@ -45,31 +66,30 @@ curl -s -X POST http://localhost:5000/classify \
 dotnet test
 ```
 
-Covers the tokenizer (punctuation, negation scope), smoothing on unseen words, clear-cut positive/negative cases, the negation flip, and the held-out accuracy threshold. CI runs build + test on every push (`.github/workflows/ci.yml`).
+The suite covers tokenizer behavior, classifier accuracy, vocabulary behavior, transformer forward-pass behavior, and the language-model service.
 
 ## Layout
 
-```
+```text
 src/
-  Program.cs                       minimal API (POST /classify) + static UI
-  wwwroot/index.html               the UI — talks to /classify, draws the leanings
-  Services/Tokenizer.cs            text -> tokens, with negation
-  Services/NaiveBayesClassifier.cs the model, from scratch
+  Program.cs                       minimal API: /classify, /generate, /suggest
+  wwwroot/index.html               static UI for classify, generate, autocomplete
   Data/TrainingData.cs             150 labelled reflections
+  Services/Tokenizer.cs            classifier tokenizer with negation handling
+  Services/NaiveBayesClassifier.cs from-scratch sentiment classifier
+  Services/LmVocabulary.cs         word-level vocabulary for generation
+  Services/Tensor.cs               small matrix parameter helper
+  Services/MicroTransformer.cs     tiny single-head transformer
+  Services/LanguageModelService.cs startup training, sampling, suggestions
 tests/
-  ClassifierTests.cs               xUnit suite
+  *.cs                             xUnit test suites
 ```
-
-## What I'd reach for next
-
-- Add a third **neutral** class and re-measure.
-- Weight tokens by TF-IDF instead of raw counts.
-- Add bigrams so phrases like "not bad" are learned directly.
-- Feed it the journal entries from the habit tracker (Day 002) and score trends over time.
 
 ## Stack
 
-C# / .NET 8, ASP.NET Core minimal API, xUnit. No machine-learning libraries — that's the point.
+C# / .NET 8, ASP.NET Core minimal API, vanilla HTML/CSS/JS, xUnit.
+
+No machine-learning libraries. No external AI model calls. The AI in this app was created by AI, then runs as ordinary code.
 
 ---
 
