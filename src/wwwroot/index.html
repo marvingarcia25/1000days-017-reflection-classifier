@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Reflection Classifier · Day 017</title>
+<title>AI-Created AI - Day 017</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -103,31 +103,31 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow"><span class="dot"></span> 1000 Days &nbsp;/&nbsp; 017</div>
-  <h1>Reflection<br>read by a model that <span class="feel">feels</span></h1>
-  <p class="lede">Type a line about your day. A multinomial Naive Bayes classifier — written from scratch in C#, <code>no ML libraries</code> — reads the mood and returns its verdict. Below it, every word's pull toward positive or negative, straight from the model's own log-likelihoods.</p>
+  <div class="eyebrow"><span class="dot"></span> 1000 Days &nbsp;/&nbsp; 017 &nbsp;/&nbsp; AI-created AI</div>
+  <h1>An AI built<br>by an AI to read your <span class="feel">reflection</span></h1>
+  <p class="lede">This tiny mood reader was designed and coded by AI, then trained inside this app. Type a line about your day: a from-scratch C# classifier reads the mood, and a tiny micro-GPT suggests or generates reflection text. <code>No ML libraries. No external model calls.</code></p>
 
   <div class="card">
-    <label class="field-label" for="entry">Your reflection</label>
+    <label class="field-label" for="entry">Your reflection for the AI-created AI</label>
     <textarea id="entry" placeholder="e.g. I kept my streak today and I feel proud of the progress…"></textarea>
-    <div class="suggest-label">micro-GPT suggests:</div>
+    <div class="suggest-label">AI-built micro-GPT suggests:</div>
     <div class="chips" id="suggest"></div>
     <div class="chips" id="chips"></div>
-    <button class="run" id="run">Read the mood</button>
+    <button class="run" id="run">Ask the AI to read the mood</button>
     <div class="note" id="note"></div>
   </div>
 
   <div class="card">
-    <label class="field-label">Generate a reflection - micro-GPT</label>
+    <label class="field-label">Generate with the AI-created micro-GPT</label>
     <div class="genbar">
       <div class="toggle" id="toggle">
         <button type="button" class="opt pos active" data-s="positive">positive</button>
         <button type="button" class="opt neg" data-s="negative">negative</button>
       </div>
-      <button class="run gen" id="gen">Generate</button>
+      <button class="run gen" id="gen">Let the AI write one</button>
     </div>
     <div class="gen-out" id="genout" aria-live="polite"></div>
-    <div class="chips"><button class="chip" id="classifyGen" hidden>classify this</button></div>
+    <div class="chips"><button class="chip" id="classifyGen" hidden>send this back to the classifier</button></div>
     <div class="note" id="gennote"></div>
   </div>
 
@@ -144,14 +144,15 @@
   </div>
 
   <details>
-    <summary>How this works</summary>
+    <summary>How the AI-created AI works</summary>
+    <p><strong>This is AI made by AI.</strong> The app, model code, training loop, API, and interface were assembled by an AI coding agent. The intelligence still runs locally in this app: no hidden cloud model is reading your text after the page loads.</p>
     <p><strong>The model runs on the server.</strong> This page sends your text to the app's <code>/classify</code> endpoint; the C# classifier — trained once at startup on 150 labelled reflections — does the maths and returns the verdict plus each word's lean.</p>
     <p><strong>Multinomial Naive Bayes.</strong> It counts how often each word appears in positive vs. negative training text, adds up the log-probabilities for your sentence, and picks the more likely class. Add-one smoothing handles words it has never seen; a word after <em>not / never / didn't</em> is tagged separately, so "not happy" isn't read as "happy". <strong>Each bar above</strong> is one word's log-likelihood ratio — the model's real reasoning, not a summary.</p>
-    <p><strong>The generator is a micro-GPT.</strong> A single-head transformer - token and positional embeddings, causal self-attention, a feed-forward layer - is written from scratch in C# and trained at startup on the same 150 reflections. Generation starts from a <code>&lt;pos&gt;</code> or <code>&lt;neg&gt;</code> prompt token and samples word by word; each word's shading shows the probability it was sampled at.</p>
+    <p><strong>The generator is a micro-GPT.</strong> A single-head transformer - token and positional embeddings, causal self-attention, a feed-forward layer - was written from scratch in C# by AI and trained at startup on the same 150 reflections. Generation starts from a <code>&lt;pos&gt;</code> or <code>&lt;neg&gt;</code> prompt token and samples word by word; each word's shading shows the probability it was sampled at.</p>
   </details>
 
   <footer>
-    <span>Day 017 · served from this app · no ML libraries</span>
+    <span>Day 017 - AI-created AI - no ML libraries</span>
     <span>1000 Days Challenge</span>
   </footer>
 </div>
@@ -173,7 +174,7 @@ EXAMPLES.forEach(t=>{
 
 function setLoading(on){
   $("run").disabled = on;
-  $("run").textContent = on ? "Reading…" : "Read the mood";
+  $("run").textContent = on ? "Reading…" : "Ask the AI to read the mood";
 }
 function setNote(msg, isError){
   const n=$("note"); n.textContent = msg || ""; n.classList.toggle("error", !!isError);
@@ -314,3 +315,4 @@ refreshSuggestions();
 </script>
 </body>
 </html>
+
