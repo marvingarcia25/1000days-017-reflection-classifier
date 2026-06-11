@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reflection Classifier · Day 017</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0e1118; --surface:#161b27; --surface-2:#1d2433;
+    --ink:#e8ebf2; --muted:#8a93a6; --line:rgba(255,255,255,.08);
+    --pos:#4fd1a5; --neg:#ff6b81;
+    --pos-dim:rgba(79,209,165,.16); --neg-dim:rgba(255,107,129,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif; line-height:1.5;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+    padding:clamp(20px,5vw,72px) clamp(16px,5vw,24px);
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  .eyebrow{
+    font-family:"Space Mono",monospace; font-size:12px; letter-spacing:.22em;
+    color:var(--muted); text-transform:uppercase; display:flex; gap:10px; align-items:center;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--pos);box-shadow:0 0 12px var(--pos)}
+  h1{
+    font-family:"Space Grotesk",sans-serif; font-weight:700;
+    font-size:clamp(40px,9vw,76px); line-height:.96; letter-spacing:-.03em; margin:14px 0 16px;
+  }
+  h1 .feel{background:linear-gradient(100deg,var(--neg),var(--pos)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .lede{color:var(--muted); max-width:54ch; font-size:15px}
+  .lede code{font-family:"Space Mono",monospace; color:var(--ink); font-size:13px}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,26px); margin-top:30px;}
+  label.field-label{font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:10px;}
+  textarea{width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; color:var(--ink); font-family:inherit; font-size:16px; padding:14px 16px; resize:vertical; min-height:96px; transition:border-color .15s;}
+  textarea:focus{outline:none; border-color:var(--pos)}
+  textarea::placeholder{color:#5a6275}
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .chip{font-size:13px; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:6px 13px; cursor:pointer; transition:.15s; font-family:inherit;}
+  .chip:hover{color:var(--ink); border-color:var(--muted)}
+  .chip:focus-visible{outline:2px solid var(--pos); outline-offset:2px}
+
+  .run{margin-top:18px; width:100%; border:none; border-radius:10px; cursor:pointer; background:var(--ink); color:var(--bg); font-family:"Space Grotesk",sans-serif; font-weight:700; font-size:16px; padding:14px; transition:transform .08s, opacity .15s;}
+  .run:hover{opacity:.9} .run:active{transform:translateY(1px)}
+  .run:disabled{opacity:.5; cursor:default}
+  .run:focus-visible{outline:2px solid var(--pos); outline-offset:3px}
+
+  #result{margin-top:26px; opacity:0; transform:translateY(8px); transition:opacity .35s, transform .35s}
+  #result.show{opacity:1; transform:none}
+
+  .verdict{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
+  .verdict .tag{font-family:"Space Grotesk",sans-serif; font-weight:700; font-size:clamp(30px,7vw,46px); letter-spacing:-.02em; line-height:1;}
+  .verdict .conf{font-family:"Space Mono",monospace; font-size:14px; color:var(--muted)}
+  .tag.pos{color:var(--pos)} .tag.neg{color:var(--neg)}
+
+  .meter{height:8px; border-radius:99px; background:var(--surface-2); margin:16px 0 4px; overflow:hidden;}
+  .meter .fill{height:100%; width:0; border-radius:99px; transition:width .6s cubic-bezier(.2,.7,.2,1)}
+  .meter-scale{display:flex; justify-content:space-between; font-family:"Space Mono",monospace; font-size:11px; color:var(--muted)}
+
+  .breakdown-h{font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:28px 0 6px; display:flex; justify-content:space-between;}
+  .breakdown-h span:first-child{color:var(--neg)} .breakdown-h span:last-child{color:var(--pos)}
+
+  .rows{display:flex; flex-direction:column; gap:7px}
+  .row{display:grid; grid-template-columns:120px 1fr; align-items:center; gap:10px; font-size:14px}
+  .row .word{font-family:"Space Mono",monospace; font-size:13px; text-align:right; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .bararea{position:relative; height:22px; background:linear-gradient(90deg,var(--neg-dim),transparent 49%,transparent 51%,var(--pos-dim)); border-radius:6px}
+  .bararea::before{content:""; position:absolute; left:50%; top:-2px; bottom:-2px; width:1px; background:var(--line)}
+  .bar{position:absolute; top:4px; height:14px; border-radius:4px; width:0; transition:width .5s ease}
+  .bar.pos{left:50%; background:var(--pos)}
+  .bar.neg{right:50%; background:var(--neg)}
+
+  .note{margin-top:18px; font-size:13px; color:var(--muted); min-height:18px}
+  .note.error{color:var(--neg)}
+
+  details{margin-top:30px; border-top:1px solid var(--line); padding-top:18px}
+  summary{font-family:"Space Mono",monospace; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); cursor:pointer; list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"+ "; color:var(--pos)}
+  details[open] summary::before{content:"– "}
+  details p{color:var(--muted); font-size:14px; margin-top:12px; max-width:60ch}
+  details p strong{color:var(--ink); font-weight:500}
+
+  footer{margin-top:38px; font-family:"Space Mono",monospace; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px}
+
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow"><span class="dot"></span> 1000 Days &nbsp;/&nbsp; 017</div>
+  <h1>Reflection<br>read by a model that <span class="feel">feels</span></h1>
+  <p class="lede">Type a line about your day. A multinomial Naive Bayes classifier — written from scratch in C#, <code>no ML libraries</code> — reads the mood and returns its verdict. Below it, every word's pull toward positive or negative, straight from the model's own log-likelihoods.</p>
+
+  <div class="card">
+    <label class="field-label" for="entry">Your reflection</label>
+    <textarea id="entry" placeholder="e.g. I kept my streak today and I feel proud of the progress…"></textarea>
+    <div class="chips" id="chips"></div>
+    <button class="run" id="run">Read the mood</button>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div id="result" aria-live="polite">
+    <div class="verdict">
+      <span class="tag" id="tag"></span>
+      <span class="conf" id="conf"></span>
+    </div>
+    <div class="meter"><div class="fill" id="fill"></div></div>
+    <div class="meter-scale"><span>negative</span><span>positive</span></div>
+
+    <div class="breakdown-h"><span>← pulls negative</span><span>pulls positive →</span></div>
+    <div class="rows" id="rows"></div>
+  </div>
+
+  <details>
+    <summary>How this works</summary>
+    <p><strong>The model runs on the server.</strong> This page sends your text to the app's <code>/classify</code> endpoint; the C# classifier — trained once at startup on 150 labelled reflections — does the maths and returns the verdict plus each word's lean.</p>
+    <p><strong>Multinomial Naive Bayes.</strong> It counts how often each word appears in positive vs. negative training text, adds up the log-probabilities for your sentence, and picks the more likely class. Add-one smoothing handles words it has never seen; a word after <em>not / never / didn't</em> is tagged separately, so "not happy" isn't read as "happy". <strong>Each bar above</strong> is one word's log-likelihood ratio — the model's real reasoning, not a summary.</p>
+  </details>
+
+  <footer>
+    <span>Day 017 · served from this app · no ML libraries</span>
+    <span>1000 Days Challenge</span>
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const EXAMPLES = [
+  "I kept my streak and I feel proud of the progress",
+  "Today was exhausting and I feel defeated",
+  "I am not happy with how today went",
+  "Calm, grateful, and full of energy",
+];
+EXAMPLES.forEach(t=>{
+  const b=document.createElement("button");
+  b.className="chip"; b.type="button"; b.textContent=t;
+  b.onclick=()=>{ $("entry").value=t; run(); };
+  $("chips").appendChild(b);
+});
+
+function setLoading(on){
+  $("run").disabled = on;
+  $("run").textContent = on ? "Reading…" : "Read the mood";
+}
+function setNote(msg, isError){
+  const n=$("note"); n.textContent = msg || ""; n.classList.toggle("error", !!isError);
+}
+
+async function run(){
+  const text = $("entry").value.trim();
+  if(!text){ $("entry").focus(); return; }
+  setLoading(true); setNote("");
+  try{
+    const res = await fetch("/classify", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ text })
+    });
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      throw new Error(body.error || ("Request failed (" + res.status + ")"));
+    }
+    render(await res.json());
+  }catch(err){
+    // Failure as direction: the most common cause is the API not running.
+    setNote(err.message.includes("fetch") || err.name === "TypeError"
+      ? "Couldn't reach the model. Is the app running? Start it with: dotnet run --project src"
+      : err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+function render(data){
+  const isPos = data.label === "positive";
+  const pPos = isPos ? data.confidence : 1 - data.confidence;
+
+  $("tag").textContent = isPos ? "Positive" : "Negative";
+  $("tag").className = "tag " + (isPos ? "pos" : "neg");
+  $("conf").textContent = (data.confidence*100).toFixed(1) + "% confident";
+
+  const fill = $("fill");
+  fill.style.background = isPos ? "var(--pos)" : "var(--neg)";
+
+  const rows = $("rows"); rows.innerHTML = "";
+  const leanings = (data.leanings || []);
+  const maxAbs = Math.max(...leanings.map(l=>Math.abs(l.lean)), 0.001);
+  leanings.slice(0, 9).forEach(l=>{
+    const row=document.createElement("div"); row.className="row";
+    const word=document.createElement("div"); word.className="word";
+    word.textContent = l.word.replace("not_","¬");
+    const area=document.createElement("div"); area.className="bararea";
+    const bar=document.createElement("div");
+    bar.className = "bar " + (l.lean>=0 ? "pos" : "neg");
+    area.appendChild(bar); row.appendChild(word); row.appendChild(area);
+    rows.appendChild(row);
+    requestAnimationFrame(()=>{ bar.style.width = (Math.abs(l.lean)/maxAbs*48) + "%"; });
+  });
+
+  $("result").classList.add("show");
+  requestAnimationFrame(()=>{ fill.style.width = (pPos*100) + "%"; });
+}
+
+$("run").onclick = run;
+$("entry").addEventListener("keydown", e=>{ if(e.key==="Enter" && (e.metaKey||e.ctrlKey)) run(); });
+</script>
+</body>
+</html>
